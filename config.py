@@ -2,10 +2,10 @@ import time
 import serial
 
 
-configComands = ['']*7
-
-
+# configuration commands and description
 # prettier-ignore
+
+configComands = ['']*7
 # Minimum interval between +UUDF events for each tag in milliseconds.
 configComands[0] = 'AT+UDFCFG=1,50'
 # User defined string that can be set to any value.
@@ -33,6 +33,7 @@ ser.isOpen()
 out = ''
 out = out.encode('utf-8')
 
+# Loop for sending configuraton commands to antenna board.
 for command in configComands:
     yinput = command
     ser.write(yinput.encode('utf-8'))
@@ -46,6 +47,9 @@ for command in configComands:
             print('Error confuguring target')
             ser.close()
             exit()
+
+
+# keeps serial port open listening to angle reports
 
 while 1:
     x = ser.readline()
