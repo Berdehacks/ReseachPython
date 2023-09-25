@@ -1,11 +1,12 @@
 import time
 import serial
 
+
 class ValidResponse:
     def __init__(
-            self,
-            response_list
-        ):
+        self,
+        response_list
+    ):
 
         self.found_id = response_list[0]
         self.rssi = response_list[1]
@@ -20,6 +21,7 @@ class ValidResponse:
 
 # configuration commands and description
 # prettier-ignore
+
 
 configComands = ['']*8
 # Minimum interval between +UUDF events for each tag in milliseconds.
@@ -37,7 +39,7 @@ configComands[7] = 'AT+UDFENABLE=1'
 
 # configure the serial connections (the parameters differs on the device you are connecting to)
 ser = serial.Serial(
-    port='COM5',
+    port='COM7',
     baudrate=115200,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_ONE,
