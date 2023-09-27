@@ -2,6 +2,48 @@ import time
 import serial
 from datetime import datetime
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.axis([0, 10, 0, 1])
+
+class ValidResponse:
+    def __init__(
+        self,
+        response_list
+    ):
+
+        self.found_id = response_list[0]
+        self.rssi = response_list[1]
+        self.azimuth = response_list[2]
+        self.elevation = response_list[3]
+        self.na = response_list[4]
+        self.channel = response_list[5]
+        self.anchor_id = response_list[6]
+        self.user_defined_str = response_list[7]
+        self.timestamp_ms = response_list[8]
+        self.periodic_event_counter = response_list[9]
+
+beacons_positions = {
+    "6C1DEBAFB644": np.array([0, 0]),
+    "6C1DEBAFB3B5": np.array([5, 0])
+}
+
+def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
+    if (beaconA.found_id in beacons_positions) and (beaconB.found_id in beacons_positions):
+        alpha = np.deg2rad(90 - np.abs(beaconA.azimuth))
+        beta = np.deg2rad(90 - np.abs(beaconB.azimuth))
+        gamma = np.deg2rad(np.abs(beaconA.azimuth) + np.abs(beaconB.azimuth))
+
+        c = np.linalg.norm(beacons_positions[beaconA.found_id] - beacons_positions[beaconB.found_id])
+
+        b = (c * np.sin(beta)) / np.sin(gamma)
+        f = np.sin(alpha) * b
+
+        # print(beaconA.azimuth, beaconB.azimuth, f)
+        return f
+    else:
+        return "Not valid ids"
 
 header = ['id', 'rssi', 'azimuth', 'elevation', 'na', 'channel',
           'anchor_id', 'user_defined_str', 'timestamp_ms', 'periodic_event_counter']
@@ -11,28 +53,10 @@ date = now.strftime("%d-%m-%Y %H-%M-%S")
 filename = 'data_log/'+date+'.csv'
 # Create csv file
 
-with open(filename, mode='w') as dataFile:
+with open(filename, 'w') as dataFile:
     csv_writer = csv.writer(dataFile, lineterminator='\n')
 
     csv_writer.writerow(header)
-
-    class ValidResponse:
-        def __init__(
-            self,
-            response_list
-        ):
-
-            self.found_id = response_list[0]
-            self.rssi = response_list[1]
-            self.azimuth = response_list[2]
-            self.elevation = response_list[3]
-            self.na = response_list[4]
-            self.channel = response_list[5]
-            self.anchor_id = response_list[6]
-            self.user_defined_str = response_list[7]
-            self.timestamp_ms = response_list[8]
-            self.periodic_event_counter = response_list[9]
-
     # configuration commands and description
 
     configComands = ['']*8
@@ -52,7 +76,7 @@ with open(filename, mode='w') as dataFile:
 
     # configure the serial connections (the parameters differs on the device you are connecting to)
     ser = serial.Serial(
-        port='COM7',
+        port='COM5',
         baudrate=115200,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -82,8 +106,14 @@ with open(filename, mode='w') as dataFile:
                 exit()
 
     # keeps serial port open listening to angle reports
+    last_found_unique_beacon_data = {}
 
-    while 1:
+    timer_start = time.time()
+    curr_counter = 0
+    curr_sum = 0
+    t = 0
+    while True:
+        t += 1
         x = ser.readline().decode('utf-8')
         responses = x.split(",")
         for i in range(len(responses)):
@@ -101,14 +131,29 @@ with open(filename, mode='w') as dataFile:
             response = ValidResponse(responses)
             # print('validresponse')
 
-    # write a a row to data base
-
-        try:
             data = [response.found_id, response.rssi, response.azimuth, response.elevation, response.na, response.channel,
                     response.anchor_id, response.user_defined_str, response.timestamp_ms, response.periodic_event_counter]
+
+            last_found_unique_beacon_data[response.found_id] = response
+
             if len(data) == 10:
                 csv_writer.writerow(data)
-            print(data)
 
-        except:
-            print('waiting for valid response')
+            f = 0
+            if len(last_found_unique_beacon_data) == 2:
+                f = get_relative_position(last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
+                curr_sum += f
+                curr_counter += 1
+            else:
+                print(response.found_id, response.azimuth, response.elevation)
+
+        if time.time() - timer_start > 1:
+            print("average =", curr_sum / curr_counter)
+            timer_start = time.time()
+            curr_sum = 0
+            curr_counter = 0
+
+            plt.plot(t, f, "*")
+
+        plt.pause(0.05)
+    plt.show()
