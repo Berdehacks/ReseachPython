@@ -28,7 +28,7 @@ configComands = ['']*8
 configComands[0] = 'AT+UDFCFG=1,50'
 # User defined string that can be set to any value.
 configComands[1] = 'AT+UDFCFG=2,""'
-configComands[2] = 'AT+UDFCFG=3,1'  # Angle calculations enabled at startup.
+# configComands[2] = 'AT+UDFCFG=3,1'  # Angle calculations enabled at startup.
 configComands[3] = 'AT+UDFCFG=4,""'  # Anchor ID.
 # Configure if the anchor is to calculate both azimuth and elevation angles.
 configComands[4] = 'AT+UDFCFG=5,1'
@@ -50,7 +50,7 @@ ser.isOpen()
 
 # Loop for sending configuraton commands to antenna board.
 for command in configComands:
-    yinput = command
+    yinput = command + '\r\n'
     ser.write(yinput.encode('utf-8'))
 
     out = ''
@@ -64,9 +64,9 @@ for command in configComands:
     if out != b'':
         print(">>" + out.decode('utf-8'))
         if 'ERROR' in out.decode('utf-8'):
-            print('Error confuguring target')
-            ser.close()
-            exit()
+            print('Error configuring target')
+            # ser.close()
+            # exit()
 
 
 # keeps serial port open listening to angle reports

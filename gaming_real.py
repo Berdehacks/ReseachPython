@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 plt.axis([0, 10, 0, 1])
 
+
 class ValidResponse:
     def __init__(
         self,
@@ -23,10 +24,14 @@ class ValidResponse:
         self.timestamp_ms = response_list[8]
         self.periodic_event_counter = response_list[9]
 
+
+# esperamos 1.7, 2.75, 0
+
 beacons_positions = {
-    "6C1DEBAFB644": np.array([3, 0.54, 0.32]),
+    "6C1DEBAFB644": np.array([3, 0, 0]),
     "6C1DEBAFB3B5": np.array([0, 0, 0])
 }
+
 
 def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
     A = beacons_positions[beaconA.found_id]
@@ -35,14 +40,15 @@ def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
     Ax, Ay, Az = (A[0], A[1], A[2])
     Bx, By, Bz = (B[0], B[1], B[2])
 
-    phi1 = beaconA.elevation
-    theta1 = beaconA.azimuth
+    phi1 = np.deg2rad(beaconA.elevation)
+    theta1 = np.deg2rad(90 - beaconA.azimuth)
 
-    phi2 = beaconB.elevation
-    theta2 = beaconB.azimuth
+    phi2 = np.deg2rad(beaconB.elevation)
+    theta2 = np.deg2rad(90 - beaconB.azimuth)
 
     up = Ax + np.tan(phi1) * np.cos(theta1) * (Bz - Az) - Bx
-    down = np.sin(phi2) * np.cos(theta2) - np.tan(phi1) * np.cos(phi2) * np.cos(theta1)
+    down = np.sin(phi2) * np.cos(theta2) - np.tan(phi1) * \
+        np.cos(phi2) * np.cos(theta1)
 
     new_r2 = up / down
 
@@ -53,6 +59,7 @@ def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
     ])
 
     return B + B_e
+
 
 header = ['id', 'rssi', 'azimuth', 'elevation', 'na', 'channel',
           'anchor_id', 'user_defined_str', 'timestamp_ms', 'periodic_event_counter']
@@ -85,7 +92,7 @@ with open(filename, 'w') as dataFile:
 
     # configure the serial connections (the parameters differs on the device you are connecting to)
     ser = serial.Serial(
-        port='/dev/ttyUSB0',
+        port='COM7',
         baudrate=115200,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -150,7 +157,8 @@ with open(filename, 'w') as dataFile:
 
             f = 0
             if len(last_found_unique_beacon_data) == 2:
-                f = get_relative_position(last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
+                f = get_relative_position(
+                    last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
                 print(response.found_id, response.azimuth, response.elevation)
                 print(f)
             else:

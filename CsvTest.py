@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 plt.axis([0, 10, 0, 1])
 
+
 class ValidResponse:
     def __init__(
         self,
@@ -24,10 +25,12 @@ class ValidResponse:
         self.timestamp_ms = response_list[8]
         self.periodic_event_counter = response_list[9]
 
+
 beacons_positions = {
-    "6C1DEBAFB644": np.array([0, 0]),
-    "6C1DEBAFB3B5": np.array([5, 0])
+    "6C1DEBAFB644": np.array([2.14, 0]),
+    "6C1DEBAFB3B5": np.array([0, 0])
 }
+
 
 def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
     if (beaconA.found_id in beacons_positions) and (beaconB.found_id in beacons_positions):
@@ -35,7 +38,8 @@ def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
         beta = np.deg2rad(90 - np.abs(beaconB.azimuth))
         gamma = np.deg2rad(np.abs(beaconA.azimuth) + np.abs(beaconB.azimuth))
 
-        c = np.linalg.norm(beacons_positions[beaconA.found_id] - beacons_positions[beaconB.found_id])
+        c = np.linalg.norm(
+            beacons_positions[beaconA.found_id] - beacons_positions[beaconB.found_id])
 
         b = (c * np.sin(beta)) / np.sin(gamma)
         f = np.sin(alpha) * b
@@ -44,6 +48,7 @@ def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
         return f
     else:
         return "Not valid ids"
+
 
 header = ['id', 'rssi', 'azimuth', 'elevation', 'na', 'channel',
           'anchor_id', 'user_defined_str', 'timestamp_ms', 'periodic_event_counter']
@@ -76,7 +81,7 @@ with open(filename, 'w') as dataFile:
 
     # configure the serial connections (the parameters differs on the device you are connecting to)
     ser = serial.Serial(
-        port='COM5',
+        port='COM7',
         baudrate=115200,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -139,21 +144,16 @@ with open(filename, 'w') as dataFile:
             if len(data) == 10:
                 csv_writer.writerow(data)
 
+            print(response.found_id, response.azimuth, response.elevation)
             f = 0
-            if len(last_found_unique_beacon_data) == 2:
-                f = get_relative_position(last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
-                curr_sum += f
-                curr_counter += 1
-            else:
-                print(response.found_id, response.azimuth, response.elevation)
+            # if len(last_found_unique_beacon_data) == 2:
+            # f = get_relative_position(
+            #     last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
+            # print(f)
+            # else:
+            #     print(response.found_id, response.azimuth, response.elevation)
 
-        if time.time() - timer_start > 1:
-            print("average =", curr_sum / curr_counter)
-            timer_start = time.time()
-            curr_sum = 0
-            curr_counter = 0
-
-            plt.plot(t, f, "*")
+            # plt.plot(t, f, "*")
 
         plt.pause(0.05)
     plt.show()
