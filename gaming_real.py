@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 
 plt.axis([0, 10, 0, 1])
 
+plt.axis('equal')
+
+def cotan(x):
+    return 1.0 / np.tan(x)
 
 class ValidResponse:
     def __init__(
@@ -25,11 +29,11 @@ class ValidResponse:
         self.periodic_event_counter = response_list[9]
 
 
-# esperamos 1.7, 2.75, 0
+# esperamos [1.7, 2.75, 0]
 
 beacons_positions = {
-    "6C1DEBAFB644": np.array([3, 0, 0]),
-    "6C1DEBAFB3B5": np.array([0, 0, 0])
+    "6C1DEBAFB644": np.array([3, 0]),
+    "6C1DEBAFB3B5": np.array([0, 0])
 }
 
 
@@ -37,25 +41,23 @@ def get_relative_position(beaconA: ValidResponse, beaconB: ValidResponse):
     A = beacons_positions[beaconA.found_id]
     B = beacons_positions[beaconB.found_id]
 
-    Ax, Ay, Az = (A[0], A[1], A[2])
-    Bx, By, Bz = (B[0], B[1], B[2])
+    Ax, Ay = (A[0], A[1])
+    Bx, By = (B[0], B[1])
 
     phi1 = np.deg2rad(beaconA.elevation)
-    theta1 = np.deg2rad(90 - beaconA.azimuth)
+    theta1 = np.deg2rad(beaconA.azimuth)
 
     phi2 = np.deg2rad(beaconB.elevation)
-    theta2 = np.deg2rad(90 - beaconB.azimuth)
+    theta2 = np.deg2rad(beaconB.azimuth)
 
-    up = Ax + np.tan(phi1) * np.cos(theta1) * (Bz - Az) - Bx
-    down = np.sin(phi2) * np.cos(theta2) - np.tan(phi1) * \
-        np.cos(phi2) * np.cos(theta1)
+    up = cotan(theta1) * (By - Ay) - Bx + Ax
+    down = np.cos(theta2) - cotan(theta1) * np.sin(theta2)
 
     new_r2 = up / down
 
     B_e = np.array([
-        new_r2 * np.sin(phi2) * np.cos(theta2),
-        new_r2 * np.sin(phi2) * np.sin(theta2),
-        new_r2 * np.cos(phi2)
+        new_r2 * np.cos(theta2),
+        new_r2 * np.sin(theta2)
     ])
 
     return B + B_e
@@ -75,24 +77,29 @@ with open(filename, 'w') as dataFile:
     csv_writer.writerow(header)
     # configuration commands and description
 
-    configComands = ['']*8
-    # Minimum interval between +UUDF events for each tag in milliseconds.
-    configComands[0] = 'AT+UDFCFG=1,50'
-    # User defined string that can be set to any value.
-    configComands[1] = 'AT+UDFCFG=2,""'
-    # Angle calculations enabled at startup.
-    configComands[2] = 'AT+UDFCFG=3,1'
-    configComands[3] = 'AT+UDFCFG=4,""'  # Anchor ID.
-    # Configure if the anchor is to calculate both azimuth and elevation angles.
-    configComands[4] = 'AT+UDFCFG=5,1'
-    # Do post processing of the angle. It is advisable to keep this enabled.
-    configComands[5] = 'AT+UDFCFG=8,1'
-    configComands[6] = 'AT+UDFCFG=11,20'  # Fixed smoothing factor.
-    configComands[7] = 'AT+UDFENABLE=1'
+    configComands = [
+        # Minimum interval between +UUDF events for each tag in milliseconds.
+        'AT+UDFCFG=1,50'
+        # User defined string that can be set to any value.
+        'AT+UDFCFG=2,""',
+        # Angle calculations enabled at startup.
+        'AT+UDFCFG=3,1',
+        'AT+UDFCFG=4,""',  # Anchor ID.
+        # Configure if the anchor is to calculate both azimuth and elevation angles.
+        'AT+UDFCFG=5,0',
+        # Do post processing of the angle. It is advisable to keep this enabled.
+        'AT+UDFCFG=8,0',
+        'AT+UDFCFG=11,0',  # Fixed smoothing factor.
+        'AT+UDFENABLE=1',
+        'AT+&w',
+        'AT+cpwroff',
+        'AT+UDFCFG=5,0',
+        'AT+UDFENABLE=1',
+    ]
 
     # configure the serial connections (the parameters differs on the device you are connecting to)
     ser = serial.Serial(
-        port='COM7',
+        port='/dev/ttyUSB0',
         baudrate=115200,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -103,7 +110,7 @@ with open(filename, 'w') as dataFile:
 
     # Loop for sending configuraton commands to antenna board.
     for command in configComands:
-        yinput = command
+        yinput = command + "\r"
         ser.write(yinput.encode('utf-8'))
 
         out = ''
@@ -113,13 +120,14 @@ with open(filename, 'w') as dataFile:
         while ser.inWaiting() > 0:
             out += ser.read()
 
-        print(out.decode('utf-8'))
-        if out != b'':
-            print(">>" + out.decode('utf-8'))
-            if 'ERROR' in out.decode('utf-8'):
-                print('Error confuguring target')
-                ser.close()
-                exit()
+        if (out.decode('utf-8') == "OK" or "ERROR"):
+            print(out.decode('utf-8'))
+        # if out != b'':
+        #     print(">>" + out.decode('utf-8'))
+        #     if 'ERROR' in out.decode('utf-8'):
+        #         print('Error confuguring target')
+        #         ser.close()
+        #         exit()
 
     # keeps serial port open listening to angle reports
     last_found_unique_beacon_data = {}
@@ -127,7 +135,14 @@ with open(filename, 'w') as dataFile:
     timer_start = time.time()
     curr_counter = 0
     curr_sum = 0
+
+    found_angles = {
+        "6C1DEBAFB644": [[], []],
+        "6C1DEBAFB3B5": [[], []]
+    }
+
     t = 0
+
     while True:
         t += 1
         x = ser.readline().decode('utf-8')
@@ -157,18 +172,37 @@ with open(filename, 'w') as dataFile:
 
             f = 0
             if len(last_found_unique_beacon_data) == 2:
-                f = get_relative_position(
-                    last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
+                found_angles[response.found_id][0].append(response.azimuth)
+                found_angles[response.found_id][1].append(response.elevation)
+                f = get_relative_position(last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
                 print(response.found_id, response.azimuth, response.elevation)
                 print(f)
             else:
                 print(response.found_id, response.azimuth, response.elevation)
 
-        # if time.time() - timer_start > 1:
-        #     print("average =", curr_sum / curr_counter)
-        #     timer_start = time.time()
-        #     curr_sum = 0
-        #     curr_counter = 0
+        if time.time() - timer_start > 5:
+            plt.clf()
+            # print("average =", curr_sum / curr_counter)
+            timer_start = time.time()
+            # curr_sum = 0
+            # curr_counter = 0
+
+            # plt.xlim([-45, 45])
+            # plt.ylim([-45, 45])
+
+            print(found_angles)
+            try:
+                plt.scatter(found_angles["6C1DEBAFB644"][0], np.random.rand(len(found_angles["6C1DEBAFB644"][0])), c='red')
+                plt.scatter(found_angles["6C1DEBAFB3B5"][0], np.random.rand(len(found_angles["6C1DEBAFB3B5"][0])), c='blue')
+                plt.scatter(np.average(found_angles["6C1DEBAFB3B5"][0]), np.random.random(), c='blue', marker = "*")
+                plt.scatter(np.average(found_angles["6C1DEBAFB644"][0]), np.random.random(), c='red', marker = "*")
+            except:
+                pass
+
+            found_angles = {
+                "6C1DEBAFB644": [[], []],
+                "6C1DEBAFB3B5": [[], []]
+            }
 
         #     plt.plot(t, f, "*")
 
