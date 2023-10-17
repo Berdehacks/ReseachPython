@@ -9,8 +9,10 @@ plt.axis([0, 10, 0, 1])
 
 plt.axis('equal')
 
+
 def cotan(x):
     return 1.0 / np.tan(x)
+
 
 class ValidResponse:
     def __init__(
@@ -99,7 +101,7 @@ with open(filename, 'w') as dataFile:
 
     # configure the serial connections (the parameters differs on the device you are connecting to)
     ser = serial.Serial(
-        port='/dev/ttyUSB0',
+        port='COM8',
         baudrate=115200,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -174,7 +176,8 @@ with open(filename, 'w') as dataFile:
             if len(last_found_unique_beacon_data) == 2:
                 found_angles[response.found_id][0].append(response.azimuth)
                 found_angles[response.found_id][1].append(response.elevation)
-                f = get_relative_position(last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
+                f = get_relative_position(
+                    last_found_unique_beacon_data["6C1DEBAFB644"], last_found_unique_beacon_data["6C1DEBAFB3B5"])
                 print(response.found_id, response.azimuth, response.elevation)
                 print(f)
             else:
@@ -192,10 +195,14 @@ with open(filename, 'w') as dataFile:
 
             print(found_angles)
             try:
-                plt.scatter(found_angles["6C1DEBAFB644"][0], np.random.rand(len(found_angles["6C1DEBAFB644"][0])), c='red')
-                plt.scatter(found_angles["6C1DEBAFB3B5"][0], np.random.rand(len(found_angles["6C1DEBAFB3B5"][0])), c='blue')
-                plt.scatter(np.average(found_angles["6C1DEBAFB3B5"][0]), np.random.random(), c='blue', marker = "*")
-                plt.scatter(np.average(found_angles["6C1DEBAFB644"][0]), np.random.random(), c='red', marker = "*")
+                plt.scatter(found_angles["6C1DEBAFB644"][0], np.random.rand(
+                    len(found_angles["6C1DEBAFB644"][0])), c='red')
+                plt.scatter(found_angles["6C1DEBAFB3B5"][0], np.random.rand(
+                    len(found_angles["6C1DEBAFB3B5"][0])), c='blue')
+                plt.scatter(np.average(
+                    found_angles["6C1DEBAFB3B5"][0]), np.random.random(), c='blue', marker="*")
+                plt.scatter(np.average(
+                    found_angles["6C1DEBAFB644"][0]), np.random.random(), c='red', marker="*")
             except:
                 pass
 
