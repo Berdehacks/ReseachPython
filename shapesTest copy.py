@@ -13,16 +13,20 @@ img = cv2.imread('1.jpg')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # setting threshold of gray image
-_, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_OTSU)
+_, threshold = cv2.threshold(gray, 140, 180, cv2.THRESH_BINARY)
 
 threshold = cv2.bitwise_not(threshold)
 
 kernel = np.ones((2, 2), np.uint8)
+kernel1 = np.ones((1, 1), np.uint8)
+
 opened = cv2.erode(threshold, kernel, iterations=7)
+# opened = cv2.dilate(threshold, kernel, iterations=2)
+# opened = cv2.erode(threshold, kernel, iterations=4)
 
 
-# plt.imshow(opened, 'gray')
-# plt.show()
+plt.imshow(threshold, 'gray')
+plt.show()
 
 
 # using a findContours() function
@@ -57,12 +61,19 @@ for contour in contours[1:]:
     elif len(approx) == 5:
         # cv2.putText(img, 'Pentagon', (x, y),
         #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        # # DAVID, los valores de X y Y ya se dan aqui con respecto a toda la imagen``
+        # cv2.circle(img, (x, y), 7, (0, 0, 255), -1)
+        # cv2.drawContours(img, [contour], 0, (0, 255, 255), 5)
         pass
 
     elif len(approx) == 6:
+
+        # DAVID, los valores de X y Y ya se dan aqui con respecto a toda la imagen
+        cv2.circle(img, (x, y), 7, (0, 0, 255), -1)
         cv2.putText(img, 'Hexagon', (x, y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.drawContours(img, [contour], 0, (0, 255, 255), 5)
+        # pass
 
     else:
         cv2.putText(img, 'circle', (x, y),
